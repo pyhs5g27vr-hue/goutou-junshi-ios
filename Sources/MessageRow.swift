@@ -139,6 +139,7 @@ struct BlinkingCursor: View {
 
 struct MessageRow: View {
     let message: Message
+    var accent: Color = .blue
     var isStreaming: Bool = false
 
     private var isUser: Bool { message.role == .user }
@@ -178,13 +179,17 @@ struct MessageRow: View {
         }
         .font(.system(size: 15.5))
         .foregroundStyle(isUser ? Color.white : Color.primary)
-        .padding(.horizontal, 15)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .frame(maxWidth: 320, alignment: .leading)
-        .liquidGlass(
-            RoundedRectangle(cornerRadius: 20, style: .continuous),
-            tint: isUser ? .orange : nil
-        )
+        .background {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(isUser ? accent : Color(uiColor: .secondarySystemBackground))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.primary.opacity(isUser ? 0 : 0.06), lineWidth: 0.5)
+        }
     }
 
     private var attachmentPreview: some View {

@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct ComposerBar: View {
     @Binding var text: String
     @Binding var pending: [Attachment]
+    var accent: Color = .blue
     var isStreaming: Bool
     var onSend: () -> Void
     var onStop: () -> Void
@@ -118,7 +119,7 @@ struct ComposerBar: View {
                 .frame(width: 44, height: 44)
                 .liquidGlass(
                     .circle,
-                    tint: isStreaming ? Color.red : (canSend ? Color.orange : nil),
+                    tint: isStreaming ? Color.red : (canSend ? accent : nil),
                     interactive: true
                 )
                 .scaleEffect(isStreaming ? 0.94 : 1)

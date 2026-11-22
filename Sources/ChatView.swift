@@ -9,10 +9,12 @@ struct ChatView: View {
     @State private var pending: [Attachment] = []
     @State private var showSettings = false
 
+    private var accent: Color { settings.accent.color }
+
     var body: some View {
         NavigationStack {
             ZStack {
-                AuroraBackground()
+                AppBackground(accent: accent)
                 conversation
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { composer }
@@ -33,7 +35,7 @@ struct ChatView: View {
                 Text(self.store.lastError ?? "")
             }
         }
-        .tint(.orange)
+        .tint(accent)
     }
 
     // MARK: - 会话区
@@ -41,20 +43,20 @@ struct ChatView: View {
     private var conversation: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 6) {
+                LazyVStack(spacing: 8) {
                     if !settings.isConfigured {
                         setupHint
                     }
 
                     if store.messages.isEmpty && !store.isStreaming {
-                        EmptyStateView { template in
+                        EmptyStateView(accent: accent) { template in
                             self.draft = template
                         }
-                        .padding(.top, 24)
+                        .padding(.top, 12)
                     }
 
                     ForEach(store.messages) { message in
-                        MessageRow(message: message)
+                        MessageRow(message: message, accent: accent)
                             .id(message.id)
                     }
 
@@ -65,16 +67,17 @@ struct ChatView: View {
                                 text: store.streamingText,
                                 docs: store.pendingDocs
                             ),
+                            accent: accent,
                             isStreaming: true
                         )
                         .id("streaming")
                     }
 
                     Color.clear
-                        .frame(height: 8)
+                        .frame(height: 6)
                         .id("bottom")
                 }
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
             }
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: store.messages.count) { _, _ in
@@ -102,6 +105,7 @@ struct ChatView: View {
         ComposerBar(
             text: $draft,
             pending: $pending,
+            accent: accent,
             isStreaming: store.isStreaming
         ) {
             guard !store.isStreaming else { return }
@@ -143,13 +147,18 @@ struct ChatView: View {
         Button {
             self.showSettings = true
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "key.horizontal")
-                    .font(.system(size: 16, weight: .semibold))
+            HStack(spacing: 12) {
+                Image(systemName: "key.horizontal.fill")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(accent)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(accent.opacity(0.12)))
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text("还没接上模型")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text("点这里填 API 地址和 Key，两分钟搞定")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.primary)
+                    Text("点这里填 API 地址和 Key")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -158,86 +167,135 @@ struct ChatView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 13)
-            .liquidGlass(RoundedRectangle(cornerRadius: 18, style: .continuous), tint: .orange)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(uiColor: .secondarySystemBackground))
+            }
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 14)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 4)
     }
 }
 
 // MARK: - 空态
 
 struct EmptyStateView: View {
+    var accent: Color
     var onPickTemplate: (String) -> Void
 
-    private let template = """
-    你：MBTI / 主观综合评分 0–100 / 主要优势和短板
-    对象A：代号 / MBTI / 主观综合评分 0–100 / 当前关系
-    对象B（如有）：同上
-    经过：怎么认识的、发展多久、最近三件关键事件、平时谁先联系、双方投入大概几比几
-    目标：推进 / 确认关系 / 修复 / 比较选择 / 退出
-    情绪：最难受的点是什么、强度 0–10；眼下有没有必须马上回的话
-    """
+    private struct Template: Identifiable {
+        var id: String { title }
+        let icon: String
+        let title: String
+        let subtitle: String
+        let body: String
+    }
+
+    private var templates: [Template] {
+        [
+            Template(
+                icon: "bolt.fill",
+                title: "快速说清",
+                subtitle: "三句话讲明白局面",
+                body: """
+                对象：代号 / 现在是什么关系（认识、暧昧、在一起、已分手）
+                最近一件事：（什么时候 + 对方原话 + 你当时怎么反应）
+                我想要：推进 / 确认关系 / 修复 / 退出
+                现在最难受的是：
+                """
+            ),
+            Template(
+                icon: "list.bullet.rectangle",
+                title: "完整档案",
+                subtitle: "含 MBTI、投入比、关键事件",
+                body: """
+                你：MBTI / 主观综合评分 0–100 / 主要优势和短板
+                对象A：代号 / MBTI / 主观综合评分 0–100 / 当前关系
+                对象B（如有）：同上
+                经过：怎么认识的、发展多久、最近三件关键事件、平时谁先联系、双方投入大概几比几
+                目标：推进 / 确认关系 / 修复 / 比较选择 / 退出
+                情绪：最难受的点是什么、强度 0–10；眼下有没有必须马上回的话
+                """
+            ),
+            Template(
+                icon: "text.bubble",
+                title: "只回这一句",
+                subtitle: "先给一条能发出去的成品",
+                body: """
+                对方刚说：「」
+                我的处境：
+                我想要的效果：（拉近距离 / 划清边界 / 先稳住 / 直接问清楚）
+                """
+            ),
+        ]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                Image(systemName: "bubble.left.and.exclamationmark.bubble.right.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.orange)
-                    .frame(width: 46, height: 46)
-                    .liquidGlass(.circle, tint: .orange)
+            VStack(alignment: .leading, spacing: 5) {
+                Text("先让我认识你和局面")
+                    .font(.system(size: 20, weight: .semibold))
+                Text("挑一个模板，或者直接把事情讲一遍")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("先让我认识你和局面")
-                        .font(.system(size: 17, weight: .bold))
-                    Text("不知道的留空，也可以直接讲故事")
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                ForEach(templates) { t in
+                    Button {
+                        self.onPickTemplate(t.body)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: t.icon)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(accent)
+                                .frame(width: 30, height: 30)
+                                .background(Circle().fill(accent.opacity(0.12)))
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(t.title)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(.primary)
+                                Text(t.subtitle)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 11)
+                        .background {
+                            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                .fill(Color(uiColor: .secondarySystemBackground))
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
-                Spacer()
             }
 
-            VStack(alignment: .leading, spacing: 10) {
-                bullet("贴聊天截图，我只把看得见的原文当事实")
-                bullet("讲清楚最近发生了什么，我会帮你拆事实 / 推测 / 未知")
-                bullet("只问「这句怎么回」也行，第一屏直接给可发送成品")
+            HStack(spacing: 6) {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .font(.system(size: 11))
+                Text("也可以直接贴截图，我只把看得见的原文当事实")
+                    .font(.system(size: 11.5))
             }
-
-            Button {
-                self.onPickTemplate(self.template)
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "text.badge.plus")
-                    Text("填入问卷模板")
-                        .fontWeight(.semibold)
-                }
-                .font(.system(size: 14))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .liquidGlass(.capsule, tint: .orange, interactive: true)
-                .foregroundStyle(.white)
-            }
-            .buttonStyle(.plain)
+            .foregroundStyle(.tertiary)
         }
         .padding(18)
-        .liquidGlass(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .padding(.horizontal, 18)
-    }
-
-    private func bullet(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Circle()
-                .fill(Color.orange.opacity(0.75))
-                .frame(width: 5, height: 5)
-                .padding(.top, 6.5)
-            Text(text)
-                .font(.system(size: 13.5))
-                .foregroundStyle(.primary.opacity(0.85))
-                .fixedSize(horizontal: false, vertical: true)
+        .background {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemBackground).opacity(0.55))
         }
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5)
+        }
+        .padding(.horizontal, 16)
     }
 }

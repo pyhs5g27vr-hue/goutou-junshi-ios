@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-/// 全局配置：API 端点 / 密钥 / 模型 / 采样参数。存 UserDefaults。
+/// 全局配置：API 端点 / 密钥 / 模型 / 采样参数 / 主题色。存 UserDefaults。
 /// 刻意不加 @MainActor：属性默认值初始化器在属性包装器里跑，隔离标记会让它和 SwiftUI 打架。
 /// 所有读写都发生在 UI 主线程。
 final class Settings: ObservableObject {
@@ -15,6 +15,7 @@ final class Settings: ObservableObject {
     @Published var temperature: Double
     @Published var topDocs: Int
     @Published var showDocChips: Bool
+    @Published var accent: AccentColor
 
     private init() {
         baseURL = store.string(forKey: "baseURL") ?? "https://api.deepseek.com/v1"
@@ -23,6 +24,13 @@ final class Settings: ObservableObject {
         temperature = store.object(forKey: "temperature") as? Double ?? 0.6
         topDocs = store.object(forKey: "topDocs") as? Int ?? 3
         showDocChips = store.object(forKey: "showDocChips") as? Bool ?? true
+
+        if let data = store.data(forKey: "accent"),
+           let decoded = try? JSONDecoder().decode(AccentColor.self, from: data) {
+            accent = decoded
+        } else {
+            accent = .default
+        }
     }
 
     var isConfigured: Bool {
@@ -37,6 +45,9 @@ final class Settings: ObservableObject {
         store.set(temperature, forKey: "temperature")
         store.set(topDocs, forKey: "topDocs")
         store.set(showDocChips, forKey: "showDocChips")
+        if let data = try? JSONEncoder().encode(accent) {
+            store.set(data, forKey: "accent")
+        }
     }
 
     /// 常见服务商预设，设置页一键切换

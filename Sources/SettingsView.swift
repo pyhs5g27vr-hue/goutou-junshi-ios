@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @ObservedObject private var settings = Settings.shared
@@ -80,6 +81,38 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 12) {
+                            ForEach(AccentColor.presets) { preset in
+                                Button {
+                                    self.settings.accent = preset
+                                    self.settings.save()
+                                } label: {
+                                    Circle()
+                                        .fill(preset.color)
+                                        .frame(width: 30, height: 30)
+                                        .overlay {
+                                            if self.settings.accent == preset {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 12, weight: .bold))
+                                                    .foregroundStyle(.white)
+                                            }
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 2)
+
+                        ColorPicker("自定义颜色", selection: self.accentBinding, supportsOpacity: false)
+                    }
+                } header: {
+                    Text("外观")
+                } footer: {
+                    Text("主题色会用在标题栏、发送键、你的气泡和按钮强调上。")
+                }
+
+                Section {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text("温度")
@@ -89,7 +122,7 @@ struct SettingsView: View {
                                 .monospacedDigit()
                         }
                         Slider(value: $settings.temperature, in: 0...1.2, step: 0.05)
-                            .tint(.orange)
+                            .tint(settings.accent.color)
                     }
 
                     Stepper("参考文档：\(settings.topDocs) 篇", value: $settings.topDocs, in: 1...6)
@@ -102,6 +135,7 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    LabeledContent("开发作者", value: "村口架狙")
                     LabeledContent("知识库", value: "43 篇 · 内置离线")
                     LabeledContent("行为内核", value: "SKILL.md")
                     LabeledContent("版本", value: Bundle.main.appVersion)
@@ -138,7 +172,25 @@ struct SettingsView: View {
             .onChange(of: settings.topDocs) { _, _ in self.settings.save() }
             .onChange(of: settings.showDocChips) { _, _ in self.settings.save() }
         }
-        .tint(.orange)
+        .tint(settings.accent.color)
+    }
+
+    // MARK: - 主题色绑定
+
+    private var accentBinding: Binding<Color> {
+        Binding(
+            get: { self.settings.accent.color },
+            set: { newColor in
+                let ui = UIColor(newColor)
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                if ui.getRed(&r, green: &g, blue: &b, alpha: &a) {
+                    self.settings.accent = AccentColor(
+                        r: Double(r), g: Double(g), b: Double(b), name: "自定义"
+                    )
+                    self.settings.save()
+                }
+            }
+        )
     }
 
     // MARK: - 连通性测试
